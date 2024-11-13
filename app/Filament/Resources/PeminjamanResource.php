@@ -173,43 +173,43 @@ class PeminjamanResource extends Resource
         ];
     }
 
-    // public static function prosesPengembalian(Peminjaman $peminjaman)
-    // {
+    public static function prosesPengembalian(Peminjaman $peminjaman)
+    {
 
-    //     // Membuat record di tabel pengembalian dengan data terkait dari peminjaman
-    //     Pengembalian::create([
-    //         'peminjaman_id' => $peminjaman->id, // ID peminjaman
-    //         'nama_siswa' => $peminjaman->nama_siswa, // Nama siswa dari data peminjaman
-    //         'tanggal_pengembalian' => now(), // Tanggal pengembalian saat ini
-    //         'keterangan' => 'Barang dikembalikan', // Keterangan, bisa disesuaikan
-    //         'jumlah' => $peminjaman->jumlah, // Jumlah barang yang dipinjam
-    //         'gambar' => $peminjaman->gambar, // Gambar barang dari data peminjaman
-    //     ]);
-    // }
+        // Membuat record di tabel pengembalian dengan data terkait dari peminjaman
+        Pengembalian::create([
+            'peminjaman_id' => $peminjaman->id, // ID peminjaman
+            'nama_siswa' => $peminjaman->nama_siswa, // Nama siswa dari data peminjaman
+            'tanggal_pengembalian' => now(), // Tanggal pengembalian saat ini
+            'keterangan' => 'Barang dikembalikan', // Keterangan, bisa disesuaikan
+            'jumlah' => $peminjaman->jumlah, // Jumlah barang yang dipinjam
+            'gambar' => $peminjaman->gambar, // Gambar barang dari data peminjaman
+        ]);
+    }
     
 
 
-public static function prosesPengembalian(Peminjaman $peminjaman)
-{
-    DB::transaction(function () use ($peminjaman) {
-        Log::info("Mulai menyimpan data ke tabel pengembalian.");
+// public static function prosesPengembalian(Peminjaman $peminjaman)
+// {
+//     DB::transaction(function () use ($peminjaman) {
+//         Log::info("Mulai menyimpan data ke tabel pengembalian.");
         
-        Pengembalian::create([
-            'peminjaman_id' => $peminjaman->id,
-            'nama_siswa' => $peminjaman->nama_siswa,
-            'tanggal_pengembalian' => now(),
-            'keterangan' => 'Barang dikembalikan',
-            'jumlah' => $peminjaman->jumlah,
-            'gambar' => $peminjaman->gambar,
-        ]);
+//         Pengembalian::create([
+//             'peminjaman_id' => $peminjaman->id,
+//             'nama_siswa' => $peminjaman->nama_siswa,
+//             'tanggal_pengembalian' => now(),
+//             'keterangan' => 'Barang dikembalikan',
+//             'jumlah' => $peminjaman->jumlah,
+//             'gambar' => $peminjaman->gambar,
+//         ]);
 
-        Log::info("Data berhasil disimpan di pengembalian, akan menghapus data di peminjaman.");
+//         Log::info("Data berhasil disimpan di pengembalian, akan menghapus data di peminjaman.");
 
-        $peminjaman->delete();
+//         $peminjaman->delete();
 
-        Log::info("Data di peminjaman berhasil dihapus.");
-    });
-}
+//         Log::info("Data di peminjaman berhasil dihapus.");
+//     });
+// }
 
     
    
