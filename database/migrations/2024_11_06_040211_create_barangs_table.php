@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('kode_barang')->unique();
             $table->string('gambar')->nullable();
             $table->string('nama');
-            $table->integer('qty'); 
+            $table->string('qty'); 
             $table->text('merek'); 
             $table ->string('kondisi')->nullable();
             $table->timestamps();

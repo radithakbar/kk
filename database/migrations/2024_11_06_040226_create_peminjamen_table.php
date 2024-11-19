@@ -13,12 +13,13 @@ return new class extends Migration
     {
         Schema::create('peminjamen', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('barang_id')->constrained('barangs');
+            $table->foreignId('barang_id')->constrained('barangs')->cascadeOnDelete();
             $table ->string('nama_siswa')->nullable();
             $table->date('tanggal_peminjaman');
             $table->date('tanggal_pengembalian');
             $table ->string('keterangan')->nullable();
             $table->integer('jumlah')->nullable();
+            $table->enum('status', ['dikembalikan', 'belum_dikembalikan'])->default('belum_dikembalikan');
             $table->string('gambar')->nullable();
             $table->timestamps();
         });

@@ -16,6 +16,7 @@ class Pengembalian extends Model
         'keterangan',
         'jumlah',
         'gambar',
+        'status',
     ];
 
     public function peminjaman()

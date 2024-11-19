@@ -19,6 +19,7 @@ class Peminjaman extends Model
         'keterangan',
         'jumlah',
         'gambar',
+        'status',
        
     ];
 
@@ -31,4 +32,24 @@ class Peminjaman extends Model
     {
         return $this->hasMany(Pengembalian::class);
     }
+
+    // protected static function booted()
+    // {
+    //     static::created(function ($peminjaman) {
+    //         // Kurangi stok barang
+    //         $barang = $peminjaman->barang;
+    //         if ($barang) {
+    //             $barang->decrement('qty', $peminjaman->jumlah);
+    //         }
+    //     });
+
+    //     static::deleting(function ($peminjaman) {
+    //         // Kembalikan stok barang ketika peminjaman dihapus
+    //         $barang = $peminjaman->barang;
+    //         if ($barang) {
+    //             $barang->increment('qty', $peminjaman->jumlah);
+    //         }
+    //     });
+    // }
+    
 }

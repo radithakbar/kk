@@ -7,6 +7,7 @@ use App\Filament\Resources\PeminjamanResource\RelationManagers;
 use App\Models\Peminjaman;
 use App\Models\Pengembalian;
 use App\Models\Barang;
+use Filament\Actions\ActionGroup;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -18,6 +19,9 @@ use Filament\Tables\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Rap2hpoutre\FastExcel\FastExcel;
+use Filament\Notifications\Notification;
+
 
 
 
@@ -28,7 +32,7 @@ class PeminjamanResource extends Resource
 {
     public static function getPluralLabel(): string
     {
-        return 'Peminjaman'; // Nama plural tanpa "s"
+        return 'Peminjaman'; 
     }
     protected static ?string $model = Peminjaman::class;
 
@@ -49,21 +53,32 @@ class PeminjamanResource extends Resource
                 ->reactive()  // Agar data berubah setelah memilih barang
                 ->required(),
                     
-                //gambar      
-                Forms\Components\FileUpload::make('gambar')
+                // //gambar      
+                // Forms\Components\FileUpload::make('gambar')
                 
-                ->label('Gambar Barang')
-                ->disk('public')
-                ->image(),
+                // ->label('Gambar Barang')
+                // ->disk('public')
+                // ->image(),
                 
                 // Nama Siswa
                 Forms\Components\TextInput::make('nama_siswa')
                 ->required(),
 
-                // Jumlah
                 Forms\Components\TextInput::make('jumlah')
                 ->label('Jumlah')
-                ->numeric(),
+                ->numeric()
+                ->required()
+                ->reactive()
+                // ->afterStateUpdated(function ($state, callable $get, callable $set) {
+                //     $barang = Barang::find($get('barang_id'));
+                //     if ($barang && $state > $barang->qty) {
+                //         $set('jumlah', $barang->qty); // Batasi ke jumlah maksimal stok
+                // Notification::make()
+                // ->title('Stok Tidak Cukup')
+                // ->body("Jumlah yang dimasukkan melebihi stok yang tersedia. Maksimal: {$barang->qty}")
+                // ->danger()
+                // ->send();
+        //  } )
      
                 ]),
         
@@ -75,9 +90,13 @@ class PeminjamanResource extends Resource
         
                     //tanggal peminjaman
                     Forms\Components\DatePicker::make('tanggal_peminjaman')
-                        ->required(),
+                        ->default(now())
+                        ->required()
+                        ->format('Y-m-d'),
+                        
                     //tanggal pengembalian
                     Forms\Components\DatePicker::make('tanggal_pengembalian')
+                        ->format('Y-m-d')
                         ->required(),
         
                     //keterangan
@@ -88,7 +107,15 @@ class PeminjamanResource extends Resource
                             2 => 'Rusak',
                         ])
                         ->required(),
-                        ])
+                        
+
+                      //gambar      
+                    Forms\Components\FileUpload::make('gambar')
+                
+                     ->label('Bukti foto')
+                     ->disk('public')
+                     ->image()
+                     ])
             ]);
     }
 
@@ -99,30 +126,47 @@ class PeminjamanResource extends Resource
                     Tables\Columns\TextColumn::make('nama_siswa')
                     ->label('Nama Siswa')
                     ->sortable()
+                    ->searchable()
                     ->searchable(),
         
                     Tables\Columns\TextColumn::make('barang.nama')
                         ->label('Nama Barang')
+                        ->searchable()
                         ->searchable(),
                         
                     Tables\Columns\TextColumn::make('tanggal_peminjaman')
                         ->label('Tanggal Peminjaman')
-                        ->sortable(),
+                        ->sortable()
+                        ->date('d M Y')
+                        ->searchable(),
 
                     Tables\Columns\TextColumn::make('tanggal_pengembalian')
                         ->label('Tanggal Pengembalian')
-                        ->sortable(),
+                        ->sortable()
+                        ->date('d M Y')
+                        ->searchable(),
 
                     Tables\Columns\TextColumn::make('jumlah')
-                        ->label('Jumlah'),
+                        ->label('Jumlah')->searchable(),
 
                     Tables\Columns\TextColumn::make('keterangan') 
                         ->label('Keterangan')
                         ->getStateUsing(function ($record) {
                          return $record->keterangan == 1 ? 'Baik' : 'Rusak';
-                        }),
+                        })
+                        ->searchable(),
 
-                    Tables\Columns\ImageColumn::make('barang.gambar')
+                        Tables\Columns\BadgeColumn::make('status')
+                         ->label('Status')
+                         ->colors([
+                          'danger' => 'belum_dikembalikan',
+                          'success' => 'dikembalikan',
+                          ])
+                          ->formatStateUsing(fn ($state) => $state === 'belum_dikembalikan' ? 'Belum Dikembalikan' : 'Dikembalikan')
+                          ->sortable()
+                          ->searchable(),
+
+                    Tables\Columns\ImageColumn::make('gambar')
                      ->label('Bukti Foto')
                      ->disk('public')
                      ->sortable(),
@@ -130,6 +174,8 @@ class PeminjamanResource extends Resource
                     
 
             ])
+
+            
             ->filters([
                 //
             ])
@@ -139,13 +185,15 @@ class PeminjamanResource extends Resource
                     Tables\Actions\EditAction::make()->label('Ubah'),
                     Tables\Actions\DeleteAction::make()->label('Hapus'),
                 ])->button()->label('Actions')->outlined(),
-                Tables\Actions\Action::make('sudah_dikembalikan')
-                ->label('Sudah Dikembalikan')
-                ->action(fn(Peminjaman $record) => static::prosesPengembalian(peminjaman: $record))
-                ->color('success')
-                ->requiresConfirmation()
-                ->icon('heroicon-o-check')
-                ->button(),
+
+                    Tables\Actions\Action::make('toggle_pengembalian')
+                        ->label(fn (Peminjaman $record) => $record->status === 'belum_dikembalikan' ? 'Sudah Dikembalikan' : 'Belum Dikembalikan')
+                        ->action(fn (Peminjaman $record) => static::togglePengembalian($record))
+                        ->color(fn (Peminjaman $record) => $record->status === 'belum_dikembalikan' ? 'success' : 'danger')
+                        ->requiresConfirmation()                       
+                        ->button()
+                        ->outlined(),
+                
                 
             ])
             ->bulkActions([
@@ -155,14 +203,6 @@ class PeminjamanResource extends Resource
             ]);
     }
 
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
-    }
-
-    
 
     public static function getPages(): array
     {
@@ -173,19 +213,61 @@ class PeminjamanResource extends Resource
         ];
     }
 
-    public static function prosesPengembalian(Peminjaman $peminjaman)
-    {
+    public static function togglePengembalian(Peminjaman $peminjaman)
+{
+    DB::transaction(function () use ($peminjaman) {
+        if ($peminjaman->status === 'belum_dikembalikan') {
+            // Jika status 'belum_dikembalikan', ubah ke 'dikembalikan' dan buat data pengembalian
+            $peminjaman->update(['status' => 'dikembalikan']);
 
-        // Membuat record di tabel pengembalian dengan data terkait dari peminjaman
-        Pengembalian::create([
-            'peminjaman_id' => $peminjaman->id, // ID peminjaman
-            'nama_siswa' => $peminjaman->nama_siswa, // Nama siswa dari data peminjaman
-            'tanggal_pengembalian' => now(), // Tanggal pengembalian saat ini
-            'keterangan' => 'Barang dikembalikan', // Keterangan, bisa disesuaikan
-            'jumlah' => $peminjaman->jumlah, // Jumlah barang yang dipinjam
-            'gambar' => $peminjaman->gambar, // Gambar barang dari data peminjaman
-        ]);
-    }
+            Pengembalian::create([
+                'peminjaman_id' => $peminjaman->barang->nama,
+                'nama_siswa' => $peminjaman->nama_siswa,
+                'tanggal_pengembalian' => now(),
+                'keterangan' => $peminjaman->keterangan,
+                'jumlah' => $peminjaman->jumlah,
+                'gambar' => $peminjaman->gambar,
+                'status' => $peminjaman->status,
+            ]);
+        } else {
+            // Jika status 'dikembalikan', ubah ke 'belum_dikembalikan' dan hapus data pengembalian
+            $peminjaman->update(['status' => 'belum_dikembalikan']);
+
+            Pengembalian::where('peminjaman_id', $peminjaman->id)->delete();
+        }
+    });
+}
+
+//     public static function prosesPengembalian(Peminjaman $peminjaman)
+// {
+//     DB::transaction(function () use ($peminjaman) {
+//         // Menyimpan data di tabel pengembalian
+//         Pengembalian::create([
+//             'peminjaman_id' => $peminjaman->id,
+//             'nama_siswa' => $peminjaman->nama_siswa,
+//             'tanggal_pengembalian' => now(),
+//             'keterangan' => $peminjaman->keterangan,
+//             'jumlah' => $peminjaman->jumlah,
+//             'gambar' => $peminjaman->gambar,
+//         ]);
+
+//     });
+// }
+
+
+    // public static function prosesPengembalian(Peminjaman $peminjaman)
+    // {
+
+    //     // Membuat record di tabel pengembalian dengan data terkait dari peminjaman
+    //     Pengembalian::create([
+    //         'peminjaman_id' => $peminjaman->id, // ID peminjaman
+    //         'nama_siswa' => $peminjaman->nama_siswa, // Nama siswa dari data peminjaman
+    //         'tanggal_pengembalian' => now(), // Tanggal pengembalian saat ini
+    //         'keterangan' => 'Barang dikembalikan', // Keterangan, bisa disesuaikan
+    //         'jumlah' => $peminjaman->jumlah, // Jumlah barang yang dipinjam
+    //         'gambar' => $peminjaman->gambar, // Gambar barang dari data peminjaman
+    //     ]);
+    // }
     
 
 
